@@ -31,7 +31,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <StartAction>Program</StartAction>
-    <StartProgram>$(ProgramW6432)\Autodesk\Revit Copernicus\Revit.exe</StartProgram>
+    <StartProgram>$(ProgramW6432)\Autodesk\Revit 2016\Revit.exe</StartProgram>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -42,7 +42,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <StartAction>Program</StartAction>
-    <StartProgram>$(ProgramW6432)\Autodesk\Revit Copernicus\Revit.exe</StartProgram>
+    <StartProgram>$(ProgramW6432)\Autodesk\Revit 2016\Revit.exe</StartProgram>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
@@ -53,11 +53,11 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="RevitAPI">
-      <HintPath>D:\Program Files\Autodesk\Revit 2016\RevitAPI.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Revit 2016\RevitAPI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="RevitAPIUI">
-      <HintPath>D:\Program Files\Autodesk\Revit 2016\RevitAPIUI.dll</HintPath>
+      <HintPath>$(ProgramW6432)\Autodesk\Revit 2016\RevitAPIUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />

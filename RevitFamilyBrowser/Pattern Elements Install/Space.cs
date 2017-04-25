@@ -70,6 +70,144 @@ namespace RevitFamilyBrowser.Revit_Classes
                 }
             }
 
+
+            Func<List<Line>, int, int, int, List<Line>> GetWpfWalls = (List<Line> revitWalls, int derrivationX, int derrivationY, int Scale) =>
+            {
+                List<Line> wpfWalls = new List<Line>();
+                foreach (var item in revitWalls)
+                {
+                    System.Windows.Shapes.Line myLine = new System.Windows.Shapes.Line();
+                    myLine.X1 = (item.X1 / Scale) + derrivationX;
+                    myLine.Y1 = ((-item.Y1 / Scale) + derrivationY);
+                    myLine.X2 = (item.X2 / Scale) + derrivationX;
+                    myLine.Y2 = ((-item.Y2 / Scale) + derrivationY);
+                    wpfWalls.Add(myLine);
+                }
+                return wpfWalls;
+            };
+
+            Action<object, MouseButtonEventArgs> line_MouseDown = (object sender, MouseButtonEventArgs e) =>
+            {
+                Line line = (Line)sender;
+                line.Stroke = Brushes.Red;
+
+                int wallIndex = 0;
+                foreach (var item in wpfWalls)
+                {
+                    if (sender.Equals(item))
+                    {
+                        wallIndex = wpfWalls.IndexOf(item);
+                    }
+                }
+
+                List<System.Drawing.Point> listPointsOnWall;
+                gridPoints.Clear();
+
+                WpfCoordinates wpfCoord = new WpfCoordinates();
+                if (grid.radioEqual.IsChecked == true)
+                {
+                    listPointsOnWall = wpfCoord.SplitLine(line, Convert.ToInt32(grid.textBoxHorizontal.Text));
+                }
+                else
+                    listPointsOnWall = wpfCoord.SplitLineProportional(line, Convert.ToInt32(grid.textBoxHorizontal.Text));
+
+                List<System.Windows.Shapes.Line> listPerpendiculars = wpfCoord.DrawPerp(line, listPointsOnWall);
+                foreach (var item in listPerpendiculars)
+                {
+                    grid.canvas.Children.Add(wpfCoord.BuildBoundedLine(BoundingBox, item));
+                }
+
+                gridPoints = wpfCoord.GetGridPoints(listPerpendiculars, wallNormals);
+                grid.textBoxQuantity.Text = "Items: " + gridPoints.Count;
+                foreach (var item in gridPoints)
+                {
+                    double x = ((((item.X - 0.5) * Scale) / 304.8) - derrivationX * Scale / 304.8);
+                    double y = (((-(item.Y - 0.5) * Scale) / 304.8) + derrivationY * Scale / 304.8);
+                }
+
+                //----------------------------------------Revit coordinates--------------------------------------------------------
+                CoordinatesRevit rvt = new CoordinatesRevit();
+                Line rvtWall = revitWalls[wallIndex];
+                List<System.Drawing.PointF> rvtPointsOnWall = rvt.GetSplitPoints(rvtWall, Convert.ToInt32(grid.textBoxHorizontal.Text));
+
+                //MessageBox.Show($"Wall coors\nX1={rvtWall.X1}, Y1={rvtWall.Y1}\nX2={rvtWall.X2} Y2={rvtWall.Y2}");
+                List<System.Windows.Shapes.Line> rvtListPerpendiculars = rvt.GetPerpendiculars(rvtWall, rvtPointsOnWall);
+                rvtGridPoints = rvt.GetGridPointsRvt(revitWallNormals, rvtListPerpendiculars);
+
+                foreach (var item in rvtGridPoints)
+                {
+                    Properties.Settings.Default.InstallPoints += (item.X) / (25.4 * 12) + "*" + (item.Y) / (25.4 * 12) + "\n";
+                }
+
+                //------------------------------------Draw Lines to intersection points in wpf window---------------------------------
+                //List<System.Drawing.Point> temp = new List<System.Drawing.Point>();
+                //temp = coord.GetIntersectInRoom(BoundingBox, gridPoints);
+
+                //string test = string.Empty;
+                //int count = 0;
+                //foreach (var item in temp)
+                //{
+                //    System.Windows.Shapes.Line intersect = new System.Windows.Shapes.Line();
+                //    intersect.X1 = 0;
+                //    intersect.Y1 = 0;
+                //    intersect.X2 = item.X;
+                //    intersect.Y2 = item.Y;
+                //    count++;
+                //    //test += count.ToString() + ". X=" + item.X.ToString() + " Y=" + item.Y.ToString() + "\n";
+                //    intersect.Stroke = Brushes.Red;
+
+                //    grid.canvas.Children.Add(intersect);
+                //}
+                //-----------------------------------------------------------------------------------------------------------------------
+            };
+
+            Action<object, MouseEventArgs> line_MouseEnter = (object sender, MouseEventArgs e) =>
+            {
+                ((System.Windows.Shapes.Line)sender).Stroke = Brushes.Gray;
+            };
+
+            Action<object, MouseEventArgs> line_MouseLeave = (object sender, MouseEventArgs e) =>
+            {
+                if (!Equals(((System.Windows.Shapes.Line)sender).Stroke, Brushes.Red))
+                {
+                    ((System.Windows.Shapes.Line)sender).Stroke = Brushes.Black;
+                }
+            };
+
+            Action<object, MouseButtonEventArgs> line_MouseUp = (object sender, MouseButtonEventArgs e) =>
+            {
+                // Change line colour back to normal 
+                ((System.Windows.Shapes.Line)sender).Stroke = System.Windows.Media.Brushes.Red;
+            };
+
+            //Action<object, RoutedEventArgs> buttonReset_Click = (object sender, RoutedEventArgs e) =>
+            //{
+            //    List<System.Windows.Shapes.Line> lines = grid.canvas.Children.OfType<System.Windows.Shapes.Line>().Where(r => Equals(r.Stroke, Brushes.SteelBlue)).ToList();
+            //    grid.textBoxQuantity.Text = "No Items";
+            //    foreach (var item in lines)
+            //    {
+            //        grid.canvas.Children.Remove(item);
+            //    }
+            //};
+
+            Action<List<Line>> Draw = (List<Line> wpfWalls) =>
+            {
+                foreach (Line myLine in wpfWalls)
+                {
+                    myLine.Stroke = System.Windows.Media.Brushes.Black;
+                    myLine.StrokeThickness = 3;
+
+                    myLine.StrokeEndLineCap = PenLineCap.Round;
+                    myLine.StrokeStartLineCap = PenLineCap.Round;
+
+                    myLine.MouseDown += new MouseButtonEventHandler(line_MouseDown);
+                    myLine.MouseUp += new MouseButtonEventHandler(line_MouseUp);
+                    myLine.MouseEnter += new MouseEventHandler(line_MouseEnter);
+                    myLine.MouseLeave += new MouseEventHandler(line_MouseLeave);
+                    grid.canvas.Children.Add(myLine);
+                }
+            };
+
             using (var transaction = new Transaction(doc, "Family Symbol Collecting"))
             {
                 transaction.Start();
@@ -124,143 +262,6 @@ namespace RevitFamilyBrowser.Revit_Classes
                 Draw(wpfWalls);
 
                 transaction.RollBack();
-            }
-
-            List<Line> GetWpfWalls(List<Line> revitWalls, int derrivationX, int derrivationY, int Scale)
-            {
-                List<Line> wpfWalls = new List<Line>();
-                foreach (var item in revitWalls)
-                {
-                    System.Windows.Shapes.Line myLine = new System.Windows.Shapes.Line();
-                    myLine.X1 = (item.X1 / Scale) + derrivationX;
-                    myLine.Y1 = ((-item.Y1 / Scale) + derrivationY);
-                    myLine.X2 = (item.X2 / Scale) + derrivationX;
-                    myLine.Y2 = ((-item.Y2 / Scale) + derrivationY);
-                    wpfWalls.Add(myLine);
-                }
-                return wpfWalls;
-            }
-
-            void line_MouseDown(object sender, MouseButtonEventArgs e)
-            {
-                Line line = (Line)sender;
-                line.Stroke = Brushes.Red;
-
-                int wallIndex = 0;
-                foreach (var item in wpfWalls)
-                {
-                    if (sender.Equals(item))
-                    {
-                        wallIndex = wpfWalls.IndexOf(item);
-                    }
-                }
-
-                List<System.Drawing.Point> listPointsOnWall;
-                gridPoints.Clear();
-
-                WpfCoordinates wpfCoord = new WpfCoordinates();
-                if (grid.radioEqual.IsChecked == true)
-                {
-                    listPointsOnWall = wpfCoord.SplitLine(line, Convert.ToInt32(grid.textBoxHorizontal.Text));
-                }
-                else
-                    listPointsOnWall = wpfCoord.SplitLineProportional(line, Convert.ToInt32(grid.textBoxHorizontal.Text));
-
-                List<System.Windows.Shapes.Line> listPerpendiculars = wpfCoord.DrawPerp(line, listPointsOnWall);
-                foreach (var item in listPerpendiculars)
-                {
-                    grid.canvas.Children.Add(wpfCoord.BuildBoundedLine(BoundingBox, item));
-                }
-
-                gridPoints = wpfCoord.GetGridPoints(listPerpendiculars, wallNormals);
-                grid.textBoxQuantity.Text = "Items: " + gridPoints.Count;
-                foreach (var item in gridPoints)
-                {
-                    double x = ((((item.X - 0.5) * Scale) / 304.8) - derrivationX * Scale / 304.8);
-                    double y = (((-(item.Y - 0.5) * Scale) / 304.8) + derrivationY * Scale / 304.8);
-                }
-                
-                //----------------------------------------Revit coordinates--------------------------------------------------------
-                CoordinatesRevit rvt = new CoordinatesRevit();
-                Line rvtWall = revitWalls[wallIndex];
-                List<System.Drawing.PointF> rvtPointsOnWall = rvt.GetSplitPoints(rvtWall, Convert.ToInt32(grid.textBoxHorizontal.Text));
-
-                //MessageBox.Show($"Wall coors\nX1={rvtWall.X1}, Y1={rvtWall.Y1}\nX2={rvtWall.X2} Y2={rvtWall.Y2}");
-                List<System.Windows.Shapes.Line> rvtListPerpendiculars = rvt.GetPerpendiculars(rvtWall, rvtPointsOnWall);
-                rvtGridPoints = rvt.GetGridPointsRvt(revitWallNormals, rvtListPerpendiculars);
-                
-                foreach (var item in rvtGridPoints)
-                {
-                    Properties.Settings.Default.InstallPoints += (item.X)/(25.4*12) + "*" + (item.Y)/(25.4*12) + "\n";
-                }
-
-                //------------------------------------Draw Lines to intersection points in wpf window---------------------------------
-                //List<System.Drawing.Point> temp = new List<System.Drawing.Point>();
-                //temp = coord.GetIntersectInRoom(BoundingBox, gridPoints);
-
-                //string test = string.Empty;
-                //int count = 0;
-                //foreach (var item in temp)
-                //{
-                //    System.Windows.Shapes.Line intersect = new System.Windows.Shapes.Line();
-                //    intersect.X1 = 0;
-                //    intersect.Y1 = 0;
-                //    intersect.X2 = item.X;
-                //    intersect.Y2 = item.Y;
-                //    count++;
-                //    //test += count.ToString() + ". X=" + item.X.ToString() + " Y=" + item.Y.ToString() + "\n";
-                //    intersect.Stroke = Brushes.Red;
-
-                //    grid.canvas.Children.Add(intersect);
-                //}
-                //-----------------------------------------------------------------------------------------------------------------------
-            }
-
-            void line_MouseEnter(object sender, MouseEventArgs e)
-            {
-                ((System.Windows.Shapes.Line)sender).Stroke = Brushes.Gray;
-            }
-
-            void line_MouseLeave(object sender, MouseEventArgs e)
-            {
-                if (!Equals(((System.Windows.Shapes.Line)sender).Stroke, Brushes.Red))
-                {
-                    ((System.Windows.Shapes.Line)sender).Stroke = Brushes.Black;
-                }
-            }
-
-            void line_MouseUp(object sender, MouseButtonEventArgs e)
-            {
-                // Change line colour back to normal 
-                ((System.Windows.Shapes.Line)sender).Stroke = System.Windows.Media.Brushes.Red;
-            }
-
-            //void buttonReset_Click(object sender, RoutedEventArgs e)
-            //{
-            //    List<System.Windows.Shapes.Line> lines = grid.canvas.Children.OfType<System.Windows.Shapes.Line>().Where(r => Equals(r.Stroke, Brushes.SteelBlue)).ToList();
-            //    grid.textBoxQuantity.Text = "No Items";
-            //    foreach (var item in lines)
-            //    {
-            //        grid.canvas.Children.Remove(item);
-            //    }
-            //}
-
-            void Draw(List<Line> wpfWalls)
-            {
-                foreach (Line myLine in wpfWalls)
-                {
-                    myLine.Stroke = System.Windows.Media.Brushes.Black;
-                    myLine.StrokeThickness = 3;
-
-                    myLine.StrokeEndLineCap = PenLineCap.Round;
-                    myLine.StrokeStartLineCap = PenLineCap.Round;
-
-                    myLine.MouseDown += new MouseButtonEventHandler(line_MouseDown);
-                    myLine.MouseUp += new MouseButtonEventHandler(line_MouseUp);
-                    myLine.MouseEnter += new MouseEventHandler(line_MouseEnter);
-                    myLine.MouseLeave += new MouseEventHandler(line_MouseLeave);
-                    grid.canvas.Children.Add(myLine);
-                }
             }
 
             return Result.Succeeded;
